@@ -1,0 +1,80 @@
+#version 410 core
+
+layout(vertices=4) out;
+
+uniform mat4 model;
+uniform mat4 view;
+
+in vec2 TexCoord[];
+out vec2 TextureCoord[];
+
+void main()
+{
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+    TextureCoord[gl_InvocationID] = TexCoord[gl_InvocationID];
+
+    if(gl_InvocationID == 0)
+    {
+        const int MIN_TESS_LEVEL = 4;
+        const int MAX_TESS_LEVEL = 64;
+        const float MIN_DISTANCE_X = 10;
+        const float MAX_DISTANCE_X = 200;
+        const float MIN_DISTANCE_Y = 10;
+        const float MAX_DISTANCE_Y = 200;
+        const float MIN_DISTANCE_Z = 50;
+        const float MAX_DISTANCE_Z = 800;
+
+        vec4 eyeSpacePos00 = view * model * gl_in[0].gl_Position;
+        vec4 eyeSpacePos01 = view * model * gl_in[1].gl_Position;
+        vec4 eyeSpacePos10 = view * model * gl_in[2].gl_Position;
+        vec4 eyeSpacePos11 = view * model * gl_in[3].gl_Position;
+
+        // "distance" from camera scaled between 0 and 1
+        float quad_eSP00_z = (abs(eyeSpacePos00.z) - MIN_DISTANCE_Z) * (abs(eyeSpacePos00.z) - MIN_DISTANCE_Z);
+        float quad_eSP00_x = (abs(eyeSpacePos00.x) - MIN_DISTANCE_X) * (abs(eyeSpacePos00.x) - MIN_DISTANCE_X);
+        float quad_eSP00_y = (abs(eyeSpacePos00.y) - MIN_DISTANCE_Y) * (abs(eyeSpacePos00.y) - MIN_DISTANCE_Y);
+        // ------dist00
+        float dist00 = sqrt(quad_eSP00_z);
+        float dist00_fov = sqrt(quad_eSP00_x + quad_eSP00_y);
+        //float dist00 = sqrt(quad_eSP00_z + quad_eSP00_x + quad_eSP00_y);
+        float quad_eSP01_z = (abs(eyeSpacePos01.z) - MIN_DISTANCE_Z) * (abs(eyeSpacePos01.z) - MIN_DISTANCE_Z);
+        float quad_eSP01_x = (abs(eyeSpacePos01.x) - MIN_DISTANCE_X) * (abs(eyeSpacePos01.x) - MIN_DISTANCE_X);
+        float quad_eSP01_y = (abs(eyeSpacePos01.y) - MIN_DISTANCE_Y) * (abs(eyeSpacePos01.y) - MIN_DISTANCE_Y);
+        // ------dist01
+        float dist01 = sqrt(quad_eSP01_z);
+        float dist01_fov = sqrt(quad_eSP01_x + quad_eSP01_y);
+        //float dist01 = sqrt(quad_eSP01_z + quad_eSP01_x + quad_eSP01_y);
+        float quad_eSP10_z = (abs(eyeSpacePos10.z) - MIN_DISTANCE_Z) * (abs(eyeSpacePos10.z) - MIN_DISTANCE_Z);
+        float quad_eSP10_x = (abs(eyeSpacePos10.x) - MIN_DISTANCE_X) * (abs(eyeSpacePos10.x) - MIN_DISTANCE_X);
+        float quad_eSP10_y = (abs(eyeSpacePos10.y) - MIN_DISTANCE_Y) * (abs(eyeSpacePos10.y) - MIN_DISTANCE_Y);
+        // ------dist10
+        float dist10 = sqrt(quad_eSP10_z);
+        float dist10_fov = sqrt(quad_eSP10_x + quad_eSP10_y);
+        //float dist10 = sqrt(quad_eSP10_z + quad_eSP10_x + quad_eSP10_y);
+        float quad_eSP11_z = (abs(eyeSpacePos11.z) - MIN_DISTANCE_Z) * (abs(eyeSpacePos11.z) - MIN_DISTANCE_Z);
+        float quad_eSP11_x = (abs(eyeSpacePos11.x) - MIN_DISTANCE_X) * (abs(eyeSpacePos11.x) - MIN_DISTANCE_X);
+        float quad_eSP11_y = (abs(eyeSpacePos11.y) - MIN_DISTANCE_Y) * (abs(eyeSpacePos11.y) - MIN_DISTANCE_Y);
+        // ------dist11
+        float dist11 = sqrt(quad_eSP11_z);
+        float dist11_fov = sqrt(quad_eSP11_x + quad_eSP11_y);
+        //float dist11 = sqrt(quad_eSP11_z + quad_eSP11_x + quad_eSP11_y);
+        float distance00 = clamp( (dist00 + dist00_fov - MIN_DISTANCE_Z) / (MAX_DISTANCE_Z-MIN_DISTANCE_Z), 0.0, 1.0 );
+        float distance01 = clamp( (dist01 + dist01_fov - MIN_DISTANCE_Z) / (MAX_DISTANCE_Z-MIN_DISTANCE_Z), 0.0, 1.0 );
+        float distance10 = clamp( (dist10 + dist10_fov - MIN_DISTANCE_Z) / (MAX_DISTANCE_Z-MIN_DISTANCE_Z), 0.0, 1.0 );
+        float distance11 = clamp( (dist11 + dist11_fov - MIN_DISTANCE_Z) / (MAX_DISTANCE_Z-MIN_DISTANCE_Z), 0.0, 1.0 );
+        //float distance11 = clamp( (abs(eyeSpacePos11.z) - MIN_DISTANCE) / (MAX_DISTANCE-MIN_DISTANCE), 0.0, 1.0 );
+
+        float tessLevel0 = mix( MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance10, distance00) );
+        float tessLevel1 = mix( MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance00, distance01) );
+        float tessLevel2 = mix( MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance01, distance11) );
+        float tessLevel3 = mix( MAX_TESS_LEVEL, MIN_TESS_LEVEL, min(distance11, distance10) );
+         
+        gl_TessLevelOuter[0] = tessLevel0;
+        gl_TessLevelOuter[1] = tessLevel1;
+        gl_TessLevelOuter[2] = tessLevel2;
+        gl_TessLevelOuter[3] = tessLevel3;
+
+        gl_TessLevelInner[0] = max(tessLevel1, tessLevel3);
+        gl_TessLevelInner[1] = max(tessLevel0, tessLevel2);
+    }
+}
